@@ -213,9 +213,15 @@ local function updateBindings()
 end
 
 local function setOverrideBindingHook(_, _, overrideKey)
-  if not hook or InCombatLockdown() or not overrideKey
+  if not hook or not overrideKey
     or stringfind(overrideKey, "MOUSEWHEEL")
     or overrideKey == "BUTTON1" or overrideKey == "BUTTON2" then
+    return
+  end
+
+  if InCombatLockdown() then
+    pendingUpdate = true
+    overrideFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
     return
   end
 

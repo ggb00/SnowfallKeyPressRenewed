@@ -194,10 +194,10 @@ local function updateBindings()
   local numBindings = GetNumBindings()
   for i = 1, numBindings do
     local _, _, key1, key2 = GetBinding(i)
-    if key1 and not stringfind(key1, "MOUSEWHEEL") then
+    if key1 and not stringfind(key1, "MOUSEWHEEL") and key1 ~= "BUTTON1" and key1 ~= "BUTTON2" then
       boundKeys[key1] = true
     end
-    if key2 and not stringfind(key2, "MOUSEWHEEL") then
+    if key2 and not stringfind(key2, "MOUSEWHEEL") and key2 ~= "BUTTON1" and key2 ~= "BUTTON2" then
       boundKeys[key2] = true
     end
   end
@@ -213,7 +213,9 @@ local function updateBindings()
 end
 
 local function setOverrideBindingHook(_, _, overrideKey)
-  if not hook or InCombatLockdown() or not overrideKey or stringfind(overrideKey, "MOUSEWHEEL") then
+  if not hook or InCombatLockdown() or not overrideKey
+    or stringfind(overrideKey, "MOUSEWHEEL")
+    or overrideKey == "BUTTON1" or overrideKey == "BUTTON2" then
     return
   end
 

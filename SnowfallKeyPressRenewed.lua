@@ -154,11 +154,15 @@ local function accelerateKey(key, command)
             SecureHandlerWrapScript(
               bindButton, "OnClick", bindButton,
               [[
-                lastID = MultiCastSummonSpellButton:GetID();
-                MultiCastSummonSpellButton:SetID(]] .. attributeValue .. [[);
+                if MultiCastSummonSpellButton then
+                  lastID = MultiCastSummonSpellButton:GetID();
+                  MultiCastSummonSpellButton:SetID(]] .. attributeValue .. [[);
+                end
               ]],
               [[
-                MultiCastSummonSpellButton:SetID(lastID);
+                if MultiCastSummonSpellButton then
+                  MultiCastSummonSpellButton:SetID(lastID);
+                end
               ]]
             )
             bindButton:SetAttribute("clickbutton", MultiCastSummonSpellButton)

@@ -254,4 +254,5 @@ local function onEvent(self, event)
 end
 
 overrideFrame:SetScript("OnEvent", onEvent)
+overrideFrame:RegisterEvent("PLAYER_LOGIN")
 overrideFrame:RegisterEvent("UPDATE_BINDINGS")

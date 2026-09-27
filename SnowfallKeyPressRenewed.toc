@@ -1,0 +1,7 @@
+## Interface: 30300
+## Title: SnowfallKeyPress Renewed
+## Version: 2.0
+## Notes: Modify keybindings to work on key press rather than key release
+## Author: ggb00, Dayn
+
+SnowfallKeyPressRenewed.lua

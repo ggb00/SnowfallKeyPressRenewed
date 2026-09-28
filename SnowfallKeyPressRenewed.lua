@@ -121,53 +121,57 @@ local function accelerateKey(key, command)
           )
         end
 
-        SecureHandlerUnwrapScript(bindButton, "OnClick")
-        bindButton:SetAttribute("type", nil)
-        bindButton:SetAttribute("clickbutton", nil)
-        bindButton:SetAttribute("macro", nil)
-        bindButton:SetAttribute("macrotext", nil)
-        bindButton:SetAttribute("spell", nil)
-        bindButton:SetAttribute("item", nil)
+        if bindButton._snowfallCommand ~= command then
+          bindButton._snowfallCommand = command
 
-        local maxVehicleButtons = VEHICLE_MAX_ACTIONBUTTONS or 6
+          SecureHandlerUnwrapScript(bindButton, "OnClick")
+          bindButton:SetAttribute("type", nil)
+          bindButton:SetAttribute("clickbutton", nil)
+          bindButton:SetAttribute("macro", nil)
+          bindButton:SetAttribute("macrotext", nil)
+          bindButton:SetAttribute("spell", nil)
+          bindButton:SetAttribute("item", nil)
 
-        for _, attribute in ipairs(template.attributes) do
-          local attributeName = attribute[1]
-          local attributeValue = stringgsub(command, template.command, attribute[2], 1)
+          local maxVehicleButtons = VEHICLE_MAX_ACTIONBUTTONS or 6
 
-          if attributeName == "clickbutton" then
-            bindButton:SetAttribute(attributeName, _G[attributeValue])
-          elseif attributeName == "actionbutton" then
-            SecureHandlerWrapScript(
-              bindButton, "OnClick", bindButton,
-              [[
-                local clickMacro = "/click ActionButton]] .. attributeValue .. [[";
-                if (VehicleMenuBar and VehicleMenuBar:IsProtected() and VehicleMenuBar:IsShown() and ]] .. tostring(tonumber(attributeValue) <= maxVehicleButtons) .. [[) then
-                  clickMacro = "/click VehicleMenuBarActionButton]] .. attributeValue .. [[";
-                elseif (BonusActionBarFrame and BonusActionBarFrame:IsProtected() and BonusActionBarFrame:IsShown()) then
-                  clickMacro = "/click BonusActionButton]] .. attributeValue .. [[";
-                end
-                self:SetAttribute("macrotext", clickMacro);
-              ]]
-            )
-          elseif attributeName == "multicastsummon" then
-            SecureHandlerWrapScript(
-              bindButton, "OnClick", bindButton,
-              [[
-                if MultiCastSummonSpellButton then
-                  lastID = MultiCastSummonSpellButton:GetID();
-                  MultiCastSummonSpellButton:SetID(]] .. attributeValue .. [[);
-                end
-              ]],
-              [[
-                if MultiCastSummonSpellButton then
-                  MultiCastSummonSpellButton:SetID(lastID);
-                end
-              ]]
-            )
-            bindButton:SetAttribute("clickbutton", MultiCastSummonSpellButton)
-          else
-            bindButton:SetAttribute(attributeName, attributeValue)
+          for _, attribute in ipairs(template.attributes) do
+            local attributeName = attribute[1]
+            local attributeValue = stringgsub(command, template.command, attribute[2], 1)
+
+            if attributeName == "clickbutton" then
+              bindButton:SetAttribute(attributeName, _G[attributeValue])
+            elseif attributeName == "actionbutton" then
+              SecureHandlerWrapScript(
+                bindButton, "OnClick", bindButton,
+                [[
+                  local clickMacro = "/click ActionButton]] .. attributeValue .. [[";
+                  if (VehicleMenuBar and VehicleMenuBar:IsProtected() and VehicleMenuBar:IsShown() and ]] .. tostring(tonumber(attributeValue) <= maxVehicleButtons) .. [[) then
+                    clickMacro = "/click VehicleMenuBarActionButton]] .. attributeValue .. [[";
+                  elseif (BonusActionBarFrame and BonusActionBarFrame:IsProtected() and BonusActionBarFrame:IsShown()) then
+                    clickMacro = "/click BonusActionButton]] .. attributeValue .. [[";
+                  end
+                  self:SetAttribute("macrotext", clickMacro);
+                ]]
+              )
+            elseif attributeName == "multicastsummon" then
+              SecureHandlerWrapScript(
+                bindButton, "OnClick", bindButton,
+                [[
+                  if MultiCastSummonSpellButton then
+                    lastID = MultiCastSummonSpellButton:GetID();
+                    MultiCastSummonSpellButton:SetID(]] .. attributeValue .. [[);
+                  end
+                ]],
+                [[
+                  if MultiCastSummonSpellButton then
+                    MultiCastSummonSpellButton:SetID(lastID);
+                  end
+                ]]
+              )
+              bindButton:SetAttribute("clickbutton", MultiCastSummonSpellButton)
+            else
+              bindButton:SetAttribute(attributeName, attributeValue)
+            end
           end
         end
 
@@ -245,11 +249,27 @@ hooksecurefunc("SetOverrideBindingClick", setOverrideBindingHook)
 hooksecurefunc("SetOverrideBindingItem", setOverrideBindingHook)
 hooksecurefunc("SetOverrideBindingMacro", setOverrideBindingHook)
 
-local function clearOverrideBindingsHook()
-  if not hook then
+local function clearOverrideBindingsHook(owner)
+  if not hook or owner == overrideFrame then
     return
   end
-  updateBindings()
+
+  if InCombatLockdown() then
+    pendingUpdate = true
+    overrideFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    return
+  end
+
+  if not pendingUpdate then
+    pendingUpdate = true
+    overrideFrame:SetScript("OnUpdate", function(self)
+      self:SetScript("OnUpdate", nil)
+      if pendingUpdate then
+        pendingUpdate = false
+        updateBindings()
+      end
+    end)
+  end
 end
 hooksecurefunc("ClearOverrideBindings", clearOverrideBindingsHook)
 

@@ -191,6 +191,8 @@ local function updateBindings()
     return
   end
 
+  pendingUpdate = false
+
   hook = false
   ClearOverrideBindings(overrideFrame)
   hook = true
@@ -249,6 +251,13 @@ hooksecurefunc("SetOverrideBindingClick", setOverrideBindingHook)
 hooksecurefunc("SetOverrideBindingItem", setOverrideBindingHook)
 hooksecurefunc("SetOverrideBindingMacro", setOverrideBindingHook)
 
+local function onDebounceUpdate(self)
+  self:SetScript("OnUpdate", nil)
+  if pendingUpdate then
+    updateBindings()
+  end
+end
+
 local function clearOverrideBindingsHook(owner)
   if not hook or owner == overrideFrame then
     return
@@ -262,13 +271,7 @@ local function clearOverrideBindingsHook(owner)
 
   if not pendingUpdate then
     pendingUpdate = true
-    overrideFrame:SetScript("OnUpdate", function(self)
-      self:SetScript("OnUpdate", nil)
-      if pendingUpdate then
-        pendingUpdate = false
-        updateBindings()
-      end
-    end)
+    overrideFrame:SetScript("OnUpdate", onDebounceUpdate)
   end
 end
 hooksecurefunc("ClearOverrideBindings", clearOverrideBindingsHook)

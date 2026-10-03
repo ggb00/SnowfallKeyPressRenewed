@@ -10,6 +10,7 @@ local InCombatLockdown = InCombatLockdown
 local GetNumBindings = GetNumBindings
 local GetBinding = GetBinding
 local GetBindingAction = GetBindingAction
+local GetBindingKey = GetBindingKey
 local SetOverrideBinding = SetOverrideBinding
 local SetOverrideBindingClick = SetOverrideBindingClick
 local ClearOverrideBindings = ClearOverrideBindings
@@ -53,6 +54,46 @@ local allowedTypeAttributes = {
   ["mainassist"] = true,
 }
 
+local modifierCombos = {
+  "",
+  "ALT-",
+  "CTRL-",
+  "SHIFT-",
+  "ALT-CTRL-",
+  "ALT-SHIFT-",
+  "CTRL-SHIFT-",
+  "ALT-CTRL-SHIFT-",
+}
+
+local universalBaseKeys = {
+  "SPACE", "ENTER", "ESCAPE", "TAB", "BACKSPACE", "DELETE", "INSERT",
+  "HOME", "END", "PAGEUP", "PAGEDOWN", "UP", "DOWN", "LEFT", "RIGHT",
+  "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+  "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+  "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+  "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12",
+  "`", "-", "=", "[", "]", "\\", ";", "'", ".", ",", "/",
+  "NUMPAD0", "NUMPAD1", "NUMPAD2", "NUMPAD3", "NUMPAD4",
+  "NUMPAD5", "NUMPAD6", "NUMPAD7", "NUMPAD8", "NUMPAD9",
+  "NUMPADDECIMAL", "NUMPADDIVIDE", "NUMPADMINUS", "NUMPADMULTIPLY", "NUMPADPLUS",
+  "BUTTON3", "BUTTON4", "BUTTON5", "BUTTON6", "BUTTON7", "BUTTON8", "BUTTON9",
+  "BUTTON10", "BUTTON11", "BUTTON12", "BUTTON13", "BUTTON14", "BUTTON15", "BUTTON16",
+  "BUTTON17", "BUTTON18", "BUTTON19", "BUTTON20", "BUTTON21", "BUTTON22", "BUTTON23",
+  "BUTTON24", "BUTTON25", "BUTTON26", "BUTTON27", "BUTTON28", "BUTTON29", "BUTTON30", "BUTTON31",
+}
+
+local addonButtonPrefixes = {
+  {"BT4Button", 120},
+  {"BT4PetButton", 10},
+  {"BT4StanceButton", 10},
+  {"DominosActionButton", 60},
+  {"DominosPetActionButton", 10},
+  {"DominosClassActionButton", 10},
+  {"BindPadMacro", 100},
+  {"BindPadKey", 100},
+  {"MacaroonButton", 120},
+}
+
 local hook = true
 local overrideFrame = CreateFrame("Frame")
 local boundKeys = {}
@@ -73,6 +114,10 @@ local function isSecureButton(x)
 end
 
 local function accelerateKey(key, command)
+  if key == "BUTTON1" or key == "BUTTON2" or stringfind(key, "MOUSEWHEEL") then
+    return
+  end
+
   local clickButtonName, mouseButton
   local clickButton, harmButton, helpButton
   local mouseType, harmType, helpType
@@ -184,6 +229,25 @@ local function accelerateKey(key, command)
   end
 end
 
+local function scanAddonButtons()
+  for _, def in ipairs(addonButtonPrefixes) do
+    local prefix, maxCount = def[1], def[2]
+    if _G[prefix .. "1"] then
+      for i = 1, maxCount do
+        local buttonName = prefix .. i
+        if not _G[buttonName] then break end
+        local key1, key2 = GetBindingKey("CLICK " .. buttonName .. ":LeftButton")
+        if key1 and key1 ~= "BUTTON1" and key1 ~= "BUTTON2" and not stringfind(key1, "MOUSEWHEEL") then
+          boundKeys[key1] = true
+        end
+        if key2 and key2 ~= "BUTTON1" and key2 ~= "BUTTON2" and not stringfind(key2, "MOUSEWHEEL") then
+          boundKeys[key2] = true
+        end
+      end
+    end
+  end
+end
+
 local function updateBindings()
   if InCombatLockdown() then
     pendingUpdate = true
@@ -200,11 +264,23 @@ local function updateBindings()
   local numBindings = GetNumBindings()
   for i = 1, numBindings do
     local _, _, key1, key2 = GetBinding(i)
-    if key1 and not stringfind(key1, "MOUSEWHEEL") and key1 ~= "BUTTON1" and key1 ~= "BUTTON2" then
+    if key1 and key1 ~= "BUTTON1" and key1 ~= "BUTTON2" and not stringfind(key1, "MOUSEWHEEL") then
       boundKeys[key1] = true
     end
-    if key2 and not stringfind(key2, "MOUSEWHEEL") and key2 ~= "BUTTON1" and key2 ~= "BUTTON2" then
+    if key2 and key2 ~= "BUTTON1" and key2 ~= "BUTTON2" and not stringfind(key2, "MOUSEWHEEL") then
       boundKeys[key2] = true
+    end
+  end
+
+  scanAddonButtons()
+
+  for _, baseKey in ipairs(universalBaseKeys) do
+    for _, mod in ipairs(modifierCombos) do
+      local comboKey = mod .. baseKey
+      local command = GetBindingAction(comboKey, true)
+      if command and command ~= "" then
+        accelerateKey(comboKey, command)
+      end
     end
   end
 
@@ -217,6 +293,17 @@ local function updateBindings()
     end
   end
 end
+
+local function setBindingHook(key)
+  if key and key ~= "BUTTON1" and key ~= "BUTTON2" and not stringfind(key, "MOUSEWHEEL") then
+    boundKeys[key] = true
+  end
+end
+hooksecurefunc("SetBinding", setBindingHook)
+hooksecurefunc("SetBindingClick", setBindingHook)
+hooksecurefunc("SetBindingSpell", setBindingHook)
+hooksecurefunc("SetBindingMacro", setBindingHook)
+hooksecurefunc("SetBindingItem", setBindingHook)
 
 local function setOverrideBindingHook(_, _, overrideKey)
   if not hook or not overrideKey
@@ -240,8 +327,6 @@ local function setOverrideBindingHook(_, _, overrideKey)
   local command = GetBindingAction(overrideKey, true)
   if command and command ~= "" then
     accelerateKey(overrideKey, command)
-  else
-    boundKeys[overrideKey] = nil
   end
 end
 
@@ -280,7 +365,6 @@ local function onEvent(self, event)
   if event == "PLAYER_REGEN_ENABLED" then
     self:UnregisterEvent("PLAYER_REGEN_ENABLED")
     if pendingUpdate then
-      pendingUpdate = false
       updateBindings()
     end
   else
